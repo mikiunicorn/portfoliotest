@@ -796,7 +796,6 @@
 
     function makeBlobPath(cx, cy) {
       const pts = [];
-      // One random seed per stroke keeps the shape coherent; sine waves give smooth organic deformation
       const seed = Math.random() * Math.PI * 2;
       for (let i = 0; i < POINTS; i++) {
         const angle = (i / POINTS) * Math.PI * 2;
@@ -824,7 +823,6 @@
     }
 
     function paintAt(x, y) {
-      // Paint BLACK = hide white layer = reveal black layer
       paintCtx.globalCompositeOperation = 'source-over';
       paintCtx.fillStyle = '#000';
       paintCtx.fill(makeBlobPath(x, y));
@@ -853,7 +851,20 @@
 
     hero.addEventListener('mouseleave', () => { lastX = null; lastY = null; });
 
-    // Touch support — same paint logic as mouse
+    // Touch support
+    hero.addEventListener('touchstart', e => {
+      if (resetting) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = hero.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      paintAt(x, y);
+      lastX = x;
+      lastY = y;
+      applyMask();
+    }, { passive: false });
+
     hero.addEventListener('touchmove', e => {
       if (resetting) return;
       e.preventDefault();
