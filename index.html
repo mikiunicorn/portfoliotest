@@ -173,6 +173,11 @@
       padding-top: 0;
     }
 
+    /* Mobile: swap scroll-hint text, hide coverage display */
+    .scroll-hint .scroll-hint-desktop { display: none; }
+    .scroll-hint .scroll-hint-mobile { display: inline; }
+    #coverage-display { display: none; }
+
   }
 
   /* Hero */
@@ -297,6 +302,8 @@
     background: var(--gray);
     animation: expand 2s ease-in-out infinite;
   }
+
+  .scroll-hint-mobile { display: none; }
 
   @keyframes expand {
     0%, 100% { width: 20px; opacity: 0.4; }
@@ -567,7 +574,10 @@
   <!-- Always-on-top elements -->
 
 
-  <div class="scroll-hint" style="z-index:10;">Scroll</div>
+  <div class="scroll-hint" style="z-index:10;">
+    <span class="scroll-hint-desktop">Scroll</span>
+    <span class="scroll-hint-mobile">Touch to reveal</span>
+  </div>
   <div id="coverage-display">0%</div>
 </section>
 
@@ -851,59 +861,35 @@
 
     hero.addEventListener('mouseleave', () => { lastX = null; lastY = null; });
 
-    // Touch support — detect intent on first move:
-    // mostly-vertical drag → let page scroll; otherwise → paint.
-    let touchStartX = 0, touchStartY = 0, touchMode = null; // null | 'scroll' | 'paint'
+    // Mobile: tap to toggle full reveal — one tap shows black layer, next tap restores white.
+    const isMobileDevice = window.matchMedia('(max-width: 500px)').matches;
 
-    hero.addEventListener('touchstart', e => {
-      if (resetting) return;
-      const touch = e.touches[0];
-      touchStartX = touch.clientX;
-      touchStartY = touch.clientY;
-      touchMode = null;
-      lastX = null;
-      lastY = null;
-    }, { passive: true });
+    if (isMobileDevice) {
+      let isRevealed = false;
+      let tStartX = 0, tStartY = 0, tStartTime = 0;
 
-    hero.addEventListener('touchmove', e => {
-      if (resetting) return;
-      const touch = e.touches[0];
+      hero.addEventListener('touchstart', e => {
+        const touch = e.touches[0];
+        tStartX = touch.clientX;
+        tStartY = touch.clientY;
+        tStartTime = Date.now();
+      }, { passive: true });
 
-      if (touchMode === null) {
-        const absDx = Math.abs(touch.clientX - touchStartX);
-        const absDy = Math.abs(touch.clientY - touchStartY);
-        // Clearly vertical → this is a scroll gesture; let the browser handle it.
-        if (absDy > absDx * 1.3) {
-          touchMode = 'scroll';
-          return;
+      hero.addEventListener('touchend', e => {
+        const touch = e.changedTouches[0];
+        const dx = Math.abs(touch.clientX - tStartX);
+        const dy = Math.abs(touch.clientY - tStartY);
+        const dt = Date.now() - tStartTime;
+        // Only toggle on a clean tap — drag/long-press is ignored so page can still scroll.
+        if (dx < 10 && dy < 10 && dt < 400) {
+          isRevealed = !isRevealed;
+          paintCtx.globalCompositeOperation = 'source-over';
+          paintCtx.fillStyle = isRevealed ? '#000' : '#fff';
+          paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height);
+          applyMask();
         }
-        touchMode = 'paint';
-      }
-
-      if (touchMode === 'scroll') return;
-
-      e.preventDefault();
-      const rect = hero.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-
-      if (lastX !== null) {
-        const dx = x - lastX, dy = y - lastY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const steps = Math.max(1, Math.floor(dist / (BRUSH_RADIUS * 0.6)));
-        for (let i = 0; i <= steps; i++) {
-          paintAt(lastX + dx * (i / steps), lastY + dy * (i / steps));
-        }
-      } else {
-        paintAt(x, y);
-      }
-      lastX = x;
-      lastY = y;
-      applyMask();
-    }, { passive: false });
-
-    hero.addEventListener('touchend',    () => { lastX = null; lastY = null; touchMode = null; });
-    hero.addEventListener('touchcancel', () => { lastX = null; lastY = null; touchMode = null; });
+      }, { passive: true });
+    }
 
     // Coverage: sample every 8th pixel, count black (painted) pixels
     function getCoverage() {
@@ -938,12 +924,14 @@
       requestAnimationFrame(step);
     }
 
-    setInterval(() => {
-      if (resetting) return;
-      const cov = getCoverage();
-      coverageEl.textContent = Math.round(cov * 100) + '%';
-      if (cov >= THRESHOLD) triggerReset();
-    }, 400);
+    if (!isMobileDevice) {
+      setInterval(() => {
+        if (resetting) return;
+        const cov = getCoverage();
+        coverageEl.textContent = Math.round(cov * 100) + '%';
+        if (cov >= THRESHOLD) triggerReset();
+      }, 400);
+    }
   })();
 
   // Hamburger menu toggle
