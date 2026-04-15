@@ -851,24 +851,38 @@
 
     hero.addEventListener('mouseleave', () => { lastX = null; lastY = null; });
 
-    // Touch support
+    // Touch support — detect intent on first move:
+    // mostly-vertical drag → let page scroll; otherwise → paint.
+    let touchStartX = 0, touchStartY = 0, touchMode = null; // null | 'scroll' | 'paint'
+
     hero.addEventListener('touchstart', e => {
       if (resetting) return;
-      e.preventDefault();
       const touch = e.touches[0];
-      const rect = hero.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      paintAt(x, y);
-      lastX = x;
-      lastY = y;
-      applyMask();
-    }, { passive: false });
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchMode = null;
+      lastX = null;
+      lastY = null;
+    }, { passive: true });
 
     hero.addEventListener('touchmove', e => {
       if (resetting) return;
-      e.preventDefault();
       const touch = e.touches[0];
+
+      if (touchMode === null) {
+        const absDx = Math.abs(touch.clientX - touchStartX);
+        const absDy = Math.abs(touch.clientY - touchStartY);
+        // Clearly vertical → this is a scroll gesture; let the browser handle it.
+        if (absDy > absDx * 1.3) {
+          touchMode = 'scroll';
+          return;
+        }
+        touchMode = 'paint';
+      }
+
+      if (touchMode === 'scroll') return;
+
+      e.preventDefault();
       const rect = hero.getBoundingClientRect();
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
@@ -888,8 +902,8 @@
       applyMask();
     }, { passive: false });
 
-    hero.addEventListener('touchend', () => { lastX = null; lastY = null; });
-    hero.addEventListener('touchcancel', () => { lastX = null; lastY = null; });
+    hero.addEventListener('touchend',    () => { lastX = null; lastY = null; touchMode = null; });
+    hero.addEventListener('touchcancel', () => { lastX = null; lastY = null; touchMode = null; });
 
     // Coverage: sample every 8th pixel, count black (painted) pixels
     function getCoverage() {
