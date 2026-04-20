@@ -772,8 +772,9 @@
     let resetting = false;
     let lastX = null, lastY = null;
     let maskPending = false;
-    const isMobileDevice = window.matchMedia('(max-width: 500px)').matches;
-    let isRevealed = false; // mobile tap-toggle state
+    const isMobileDevice = window.matchMedia('(pointer: coarse)').matches;
+    let isRevealed = false; // mobile tap-toggle state (kept for resize logic)
+    let mobileHasScratched = false;
 
     function fillSolid(color) {
       paintCtx.globalCompositeOperation = 'source-over';
@@ -868,27 +869,52 @@
 
       hero.addEventListener('mouseleave', () => { lastX = null; lastY = null; });
     } else {
-      // Mobile: tap anywhere in hero to toggle reveal — one tap → black, next tap → white.
-      let tStartX = 0, tStartY = 0, tStartTime = 0;
+      // Mobile: scratch-to-reveal with gesture discrimination
+      let tStartX = 0, tStartY = 0;
+      let lastTX = 0, lastTY = 0;
+      let scratchMode = null; // null=undecided, 'scratch', 'scroll'
+      const DECISION_PX = 8;   // pixels before gesture type is locked
+      const VERT_RATIO  = 1.5; // |dy|/|dx| above this → treat as scroll
 
       hero.addEventListener('touchstart', e => {
-        const touch = e.touches[0];
-        tStartX = touch.clientX;
-        tStartY = touch.clientY;
-        tStartTime = Date.now();
+        const t = e.touches[0];
+        tStartX = lastTX = t.clientX;
+        tStartY = lastTY = t.clientY;
+        scratchMode = null;
       }, { passive: true });
 
-      hero.addEventListener('touchend', e => {
-        const touch = e.changedTouches[0];
-        const dx = Math.abs(touch.clientX - tStartX);
-        const dy = Math.abs(touch.clientY - tStartY);
-        const dt = Date.now() - tStartTime;
-        // Treat as a tap only if the finger barely moved and lifted quickly.
-        // Drags/long-presses fall through so the page can still scroll.
-        if (dx < 12 && dy < 12 && dt < 500) {
-          isRevealed = !isRevealed;
-          fillSolid(isRevealed ? '#000' : '#fff');
+      hero.addEventListener('touchmove', e => {
+        const t = e.touches[0];
+        const absDx = Math.abs(t.clientX - tStartX);
+        const absDy = Math.abs(t.clientY - tStartY);
+
+        // Lock gesture type once movement exceeds decision threshold
+        if (scratchMode === null && absDx + absDy > DECISION_PX) {
+          scratchMode = absDy > absDx * VERT_RATIO ? 'scroll' : 'scratch';
         }
+        if (scratchMode !== 'scratch') return; // undecided or scroll → browser handles
+
+        e.preventDefault(); // block scroll only after scratch intent confirmed
+
+        const rect = hero.getBoundingClientRect();
+        const x  = t.clientX - rect.left;
+        const y  = t.clientY - rect.top;
+        const px = lastTX - rect.left;
+        const py = lastTY - rect.top;
+
+        const dist  = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
+        const steps = Math.max(1, Math.floor(dist / (BRUSH_RADIUS * 0.6)));
+        for (let i = 0; i <= steps; i++) {
+          paintAt(px + (x - px) * (i / steps), py + (y - py) * (i / steps));
+        }
+        lastTX = t.clientX;
+        lastTY = t.clientY;
+        mobileHasScratched = true;
+        applyMask();
+      }, { passive: false }); // must be non-passive to allow preventDefault
+
+      hero.addEventListener('touchend', () => {
+        scratchMode = null;
       }, { passive: true });
     }
 
@@ -925,14 +951,17 @@
       requestAnimationFrame(step);
     }
 
-    if (!isMobileDevice) {
-      setInterval(() => {
-        if (resetting) return;
+    setInterval(() => {
+      if (resetting) return;
+      if (!isMobileDevice) {
         const cov = getCoverage();
         coverageEl.textContent = Math.round(cov * 100) + '%';
         if (cov >= THRESHOLD) triggerReset();
-      }, 400);
-    }
+      } else if (mobileHasScratched) {
+        const cov = getCoverage();
+        if (cov >= THRESHOLD) triggerReset();
+      }
+    }, 400);
   })();
 
   // Hamburger menu toggle
