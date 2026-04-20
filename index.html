@@ -775,7 +775,6 @@
     const isMobileDevice = window.matchMedia('(pointer: coarse)').matches;
     let isRevealed = false; // mobile tap-toggle state (kept for resize logic)
     let mobileHasScratched = false;
-    let mobileFading = false;
 
     function fillSolid(color) {
       paintCtx.globalCompositeOperation = 'source-over';
@@ -790,8 +789,12 @@
       thumbCanvas.width = Math.ceil(paintCanvas.width * MASK_SCALE);
       thumbCanvas.height = Math.ceil(paintCanvas.height * MASK_SCALE);
       // Preserve toggle state across resizes (iOS Safari fires resize on URL bar show/hide)
-      // Skip if a mobile fade is mid-flight — the rAF loop will paint the correct frame next tick
-      if (!mobileFading) fillSolid(isMobileDevice && isRevealed ? '#000' : '#fff');
+      if (isMobileDevice) {
+        fillSolid('#fff'); // canvas stays neutral white on mobile; opacity drives visibility
+        baseLayer.style.opacity = isRevealed ? '0' : '1';
+      } else {
+        fillSolid('#fff');
+      }
     }
 
     function fillWhite() { fillSolid('#fff'); }
@@ -871,34 +874,12 @@
 
       hero.addEventListener('mouseleave', () => { lastX = null; lastY = null; });
     } else {
-      // Mobile: tap-toggle reveal with fade
+      // Mobile: tap-toggle via CSS opacity on the white base layer — no canvas animation
+      baseLayer.style.transition = 'opacity 0.2s ease-out';
+
       let tStartX = 0, tStartY = 0;
       let tapCancelled = false;
       const TAP_THRESHOLD = 14;
-      const FADE_MS = 200;
-
-      function fadeTo(targetRevealed) {
-        if (mobileFading) return;
-        mobileFading = true;
-        isRevealed = targetRevealed; // set immediately so resize restores correct state
-        const start = performance.now();
-        function step(now) {
-          const t = Math.min((now - start) / FADE_MS, 1);
-          const eased = t * (2 - t); // ease-out quad
-          // canvas white = show base (white), canvas black = show masked (black)
-          const v = Math.round(255 * (targetRevealed ? (1 - eased) : eased));
-          paintCtx.globalCompositeOperation = 'source-over';
-          paintCtx.fillStyle = `rgb(${v},${v},${v})`;
-          paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height);
-          applyMask();
-          if (t < 1) {
-            requestAnimationFrame(step);
-          } else {
-            mobileFading = false;
-          }
-        }
-        requestAnimationFrame(step);
-      }
 
       hero.addEventListener('touchstart', e => {
         const t = e.touches[0];
@@ -914,7 +895,10 @@
       }, { passive: true });
 
       hero.addEventListener('touchend', () => {
-        if (!tapCancelled) fadeTo(!isRevealed);
+        if (!tapCancelled) {
+          isRevealed = !isRevealed;
+          baseLayer.style.opacity = isRevealed ? '0' : '1';
+        }
         tapCancelled = false;
       }, { passive: true });
     }
