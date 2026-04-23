@@ -167,12 +167,22 @@
       height: 100dvh;
     }
 
-    /* Pull wordmark out of flex flow; same coords in both layers → no drift */
-    .hero-wordmark {
+    /* Hide per-layer wordmarks; shared element takes over on mobile */
+    .hero-base .hero-wordmark,
+    .hero-masked .hero-wordmark {
+      display: none;
+    }
+
+    /* Single wordmark pinned outside both layers — no drift possible */
+    #hero-wordmark-mobile {
+      display: block;
       position: absolute;
       left: 24px;
       bottom: 40px;
       padding: 0;
+      color: var(--black);
+      z-index: 5;
+      pointer-events: none;
     }
 
     /* Stable bounding box for centering the reveal text */
@@ -274,6 +284,13 @@
     line-height: 0.9;
     padding: 0 24px 88px;
     text-transform: uppercase;
+  }
+
+  /* Shared mobile-only wordmark — hidden on desktop */
+  @media (min-width: 501px) {
+    #hero-wordmark-mobile {
+      display: none;
+    }
   }
 
   .hero-info {
@@ -587,6 +604,9 @@
     <h1 class="hero-wordmark">Portfolio</h1>
   </div>
 
+  <!-- Shared mobile wordmark — outside both layers so it never drifts -->
+  <h1 class="hero-wordmark" id="hero-wordmark-mobile" aria-hidden="true">Portfolio</h1>
+
   <!-- Always-on-top elements -->
 
 
@@ -808,6 +828,8 @@
       if (isMobileDevice) {
         fillSolid('#fff'); // canvas stays neutral white on mobile; opacity drives visibility
         baseLayer.style.opacity = isRevealed ? '0' : '1';
+        const mwm = document.getElementById('hero-wordmark-mobile');
+        if (mwm) mwm.style.color = isRevealed ? '#fff' : '#000';
       } else {
         fillSolid('#fff');
       }
@@ -914,6 +936,8 @@
         if (!tapCancelled) {
           isRevealed = !isRevealed;
           baseLayer.style.opacity = isRevealed ? '0' : '1';
+          const mwm = document.getElementById('hero-wordmark-mobile');
+          if (mwm) mwm.style.color = isRevealed ? '#fff' : '#000';
         }
         tapCancelled = false;
       }, { passive: true });
