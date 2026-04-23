@@ -204,6 +204,22 @@
     .scroll-hint .scroll-hint-mobile { display: inline; }
     #coverage-display { display: none; }
 
+    /* Mobile hint: right side, vertical */
+    .scroll-hint {
+      left: auto;
+      right: 16px;
+      bottom: auto;
+      top: 50%;
+      transform: translateY(-50%);
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      flex-direction: column;
+      letter-spacing: 0.14em;
+      gap: 0;
+      transition: opacity 0.2s ease;
+    }
+
+
   }
 
   /* Hero */
@@ -558,6 +574,9 @@
     .contact-link {
       font-size: 20px;
     }
+    .scroll-hint::before {
+      display: none;
+    }
   }
 </style>
 </head>
@@ -830,6 +849,8 @@
         baseLayer.style.opacity = isRevealed ? '0' : '1';
         const mwm = document.getElementById('hero-wordmark-mobile');
         if (mwm) mwm.style.color = isRevealed ? '#fff' : '#000';
+        const hint = hero.querySelector('.scroll-hint');
+        if (hint) hint.style.opacity = isRevealed ? '0' : '1';
       } else {
         fillSolid('#fff');
       }
@@ -938,6 +959,8 @@
           baseLayer.style.opacity = isRevealed ? '0' : '1';
           const mwm = document.getElementById('hero-wordmark-mobile');
           if (mwm) mwm.style.color = isRevealed ? '#fff' : '#000';
+          const hint = hero.querySelector('.scroll-hint');
+          if (hint) hint.style.opacity = isRevealed ? '0' : '1';
         }
         tapCancelled = false;
       }, { passive: true });
