@@ -163,17 +163,10 @@
 
     .nav-mobile-menu { display: block; }
 
-    /* Stabilize hero height — prevents layout shift from browser chrome changes */
-    #hero {
-      height: 100dvh;
-    }
-
-    /* Anchor wordmark independently of flex layout; left: 40px aligns with .hero-info */
+    /* Hero mobile: reduce bottom padding so PORTFOLIO stays visible,
+       equal spacing is achieved by hero-main's align-items:center */
     .hero-wordmark {
-      position: absolute;
-      left: 40px;
-      bottom: 32px;
-      padding: 0;
+      padding-bottom: 28px;
     }
 
     .hero-info {
