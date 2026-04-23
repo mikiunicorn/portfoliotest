@@ -163,20 +163,30 @@
 
     .nav-mobile-menu { display: block; }
 
-    /* Hero mobile: reduce bottom padding so PORTFOLIO stays visible,
-       equal spacing is achieved by hero-main's align-items:center */
-    .hero-wordmark {
-      padding-bottom: 28px;
-    }
-
     #hero {
       height: 100dvh;
     }
 
+    /* Pull wordmark out of flex flow; same coords in both layers → no drift */
+    .hero-wordmark {
+      position: absolute;
+      left: 24px;
+      bottom: 40px;
+      padding: 0;
+    }
+
+    /* Stable bounding box for centering the reveal text */
+    .hero-main {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: var(--nav-h);
+      bottom: 100px; /* clear the wordmark area */
+    }
+
+    /* Left edge matches wordmark's left: 24px */
     .hero-info {
-      padding-top: 0;
-      padding-left: 24px;
-      padding-right: 24px;
+      padding: 0 24px;
     }
 
     /* Mobile: swap scroll-hint text, hide coverage display */
