@@ -778,9 +778,9 @@
         ref.innerHTML = '<strong style="font-weight:700">DESIGNER</strong>';
         maxW = Math.max(maxW, ref.getBoundingClientRect().width);
         document.body.removeChild(ref);
-        // Use full available width (no safety margin) so the top text's left edge
-        // aligns precisely with PORTFOLIO's left edge at 24px
-        const newSize = (infoWidth / maxW) * 100;
+        // Shrink slightly (0.85) so the stacked lines fit within .hero-main and
+        // get vertically centered — without this the content overflows the top.
+        const newSize = (infoWidth / maxW) * 100 * 0.85;
         infoLines.forEach(l => { l.style.fontSize = newSize + 'px'; });
 
         // Match PORTFOLIO wordmark size to the same available width so both blocks
